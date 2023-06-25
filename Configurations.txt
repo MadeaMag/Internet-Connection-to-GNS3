@@ -1,0 +1,79 @@
+1. 
+To allow internet connection in your GNS3-YOU DO NOT NEED TO DISABLE YOUR WINDOWS FIREWALL 
+Make sure to create Microsoft KVM Loopback Adapter, bind this virtual adapter to your GNS3 vm 
+You will have two adapters, one is the default - called a gns3 default switch. Which creates an internet bridge between the vm and your hardware PC NIC
+Video ref:
+https://www.youtube.com/watch?v=_QHgu-9MSf8
+https://www.youtube.com/watch?v=XLaPqRLSHy4
+
+2.PC Configurations:
+root@UbuntuDocker:~# cat /etc/network/interfaces
+#
+# This is a sample network config, please uncomment lines to configure the network
+#
+
+# Uncomment this line to load custom interface files
+source /etc/network/interfaces.d/*
+
+# Static config for eth0
+#auto eth0
+iface eth0 inet static
+        address 10.1.1.100
+        netmask 255.255.255.0
+        gateway 10.1.1.1
+        up echo nameserver 8.8.8.8 > /etc/resolv.conf
+
+# DHCP config for eth0
+#auto eth0
+#iface eth0 inet dhcp
+#       hostname UbuntuDockerGuest-1
+root@UbuntuDocker:~#
+
+CORE SWITCH - 
+- This will not have any configuration, it will only forward packets transparently
+
+3.
+Provider-Edge-Router#show run
+hostname Provider-Edge-Router
+!
+ip name-server 8.8.8.8
+!
+!
+interface Ethernet0/0
+ ip address dhcp
+ ip nat outside
+ ip virtual-reassembly in
+!
+interface Ethernet0/1
+ ip address 196.23.0.2 255.255.255.0
+ ip nat inside
+ ip virtual-reassembly in
+!
+ip dns view default
+ dns forwarder 8.8.8.8
+ip dns server
+ip nat inside source list 1 interface Ethernet0/0 overload
+ip route 10.1.1.0 255.255.255.0 196.23.0.1
+!
+!
+access-list 1 permit any
+!
+Provider-Edge-Router#
+
+
+4.
+Customer-Edge-Router#
+!
+ip name-server 8.8.8.8
+!
+!
+interface Ethernet0/0
+ ip address 10.1.1.1 255.255.255.0
+ ip virtual-reassembly in
+!
+interface Ethernet0/1
+ ip address 196.23.0.1 255.255.255.0
+!
+ip route 0.0.0.0 0.0.0.0 196.23.0.2 name "ISP-NTT DATA"
+!
+Customer-Edge-Router#
